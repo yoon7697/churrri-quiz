@@ -1,1 +1,14 @@
-{"name":"churrri-class-quiz","version":"0.1.0","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.mjs"}}
+{
+  "name": "churrri-class-quiz",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "build": "npm test && node scripts/build.mjs"
+  },
+  "dependencies": {
+    "ai": "7.0.173",
+    "pdfjs-dist": "6.5.438"
+  }
+}

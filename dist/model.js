@@ -15,7 +15,7 @@ export function validateQuiz(v,{freshIds=false}={}){
   const options=q.options.map((s,j)=>text(s,`${i+1}번 문제의 ${j+1}번 보기`,180));
   if(new Set(options).size!==4)throw Error(`${i+1}번 문제에 같은 보기가 있어요.`);
   const id=freshIds?uid():text(q.id,'문제 번호',100);if(ids.has(id))throw Error('문제 번호가 중복돼요.');ids.add(id);
-  return{id,text:text(q.text,`${i+1}번 문제`,500),options,correct:q.correct,explanation:typeof q.explanation==='string'?q.explanation.slice(0,1200).trim():'',kind:q.kind==='nonsense'?'nonsense':'lesson'};
+  return{id,text:text(q.text,`${i+1}번 문제`,500),options,correct:q.correct,explanation:typeof q.explanation==='string'?q.explanation.slice(0,1200).trim():'',kind:q.kind==='nonsense'?'nonsense':'lesson',...(typeof q.sourceQuote==='string'?{sourceQuote:q.sourceQuote.slice(0,300)}:{}),...(Array.isArray(q.optionReasons)&&q.optionReasons.length===4&&q.optionReasons.every(v=>typeof v==='string')?{optionReasons:q.optionReasons.map(v=>v.slice(0,500))}:{})};
  });
  return{id:freshIds?uid():text(v.id,'퀴즈 번호',100),title:text(v.title,'퀴즈 제목',80),subject:typeof v.subject==='string'?v.subject.slice(0,80):'',questions,updatedAt:Date.now()};
 }

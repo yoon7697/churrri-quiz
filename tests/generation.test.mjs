@@ -1,0 +1,68 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {generationInput,validateGenerated,validateAudit,createQuiz} from '../lib/quiz-generation.js';
+import {makeHandler,publicAIError} from '../api/generate-quiz.js';
+import {validateQuiz} from '../dist/model.js';
+const source='액체 상태의 물이 기체인 수증기로 변하는 현상을 증발이라고 합니다. 기체 상태의 수증기가 액체인 물로 변하는 현상을 응결이라고 합니다.';
+const input=()=>generationInput({source,lessonCount:1,nonsenseCount:0});
+const raw=()=>({title:'물의 상태 변화',subject:'과학',questions:[{text:'액체인 물이 수증기로 변하는 현상은?',options:['증발','응결','동결','융해'],correct:0,explanation:'물이 액체에서 기체로 변하는 것은 증발이에요.',kind:'lesson',sourceQuote:'액체 상태의 물이 기체인 수증기로 변하는 현상을 증발이라고 합니다.',optionReasons:['액체에서 기체로 변하므로 정답이에요.','기체에서 액체로 변하는 것이에요.','액체가 고체로 변하는 것이에요.','고체가 액체로 변하는 것이에요.']}]});
+const audit=()=>({checks:[{index:0,correct:0,unambiguous:true,grounded:true,suitable:true}]});
+test('counts reject strings, fractions and unsolicited difficulty; source is bounded',()=>{
+ for(const lessonCount of [0,11,1.5,'5'])assert.throws(()=>generationInput({source,lessonCount,nonsenseCount:0}));
+ for(const nonsenseCount of [-1,4,'1'])assert.throws(()=>generationInput({source,lessonCount:1,nonsenseCount}));
+ assert.throws(()=>generationInput({source:'a'.repeat(16001),lessonCount:1,nonsenseCount:0}));
+ assert.equal(generationInput({...input(),difficulty:'hard'}).difficulty,undefined);
+});
+test('valid grounded quiz retains evidence through local save/import validation',()=>{
+ const q=validateGenerated(raw(),input());
+ assert.equal(validateQuiz(q).questions[0].sourceQuote,raw().questions[0].sourceQuote);
+ assert.equal(validateQuiz(q).questions[0].optionReasons.length,4);
+});
+test('missing, mismatched and invented source quotes are rejected',()=>{
+ for(const sourceQuote of ['', '아무 근거 없이 새로 만든 수업 문장입니다.']){
+  const r=raw();r.questions[0].sourceQuote=sourceQuote;assert.throws(()=>validateGenerated(r,input()));
+ }
+});
+test('wrong question kinds/counts, repeated questions and equivalent options rejected',()=>{
+ const r=raw();r.questions[0].kind='nonsense';assert.throws(()=>validateGenerated(r,input()));
+ const d=raw();d.questions.push(structuredClone(d.questions[0]));assert.throws(()=>validateGenerated(d,{...input(),lessonCount:2}));
+ const o=raw();o.questions[0].options=['증 발','증발','응결','동결'];assert.throws(()=>validateGenerated(o,input()));
+});
+test('audit disagreement, ambiguity, missing or repeated indices prevent returning a quiz',()=>{
+ const q=validateGenerated(raw(),input());
+ for(const patch of [{correct:1},{unambiguous:false},{grounded:false},{suitable:false},{index:2}]){
+  const a=audit();Object.assign(a.checks[0],patch);assert.throws(()=>validateAudit(a,q));
+ }
+ assert.throws(()=>validateAudit({checks:[]},q));
+ assert.throws(()=>validateAudit({checks:[audit().checks[0],audit().checks[0]]},{questions:[q.questions[0],q.questions[0]]}));
+});
+test('nonsense count is additional to learning questions and needs an explanation',()=>{
+ const r=raw(),n=structuredClone(r.questions[0]);n.kind='nonsense';n.sourceQuote='';n.text='말놀이 예시 문제';r.questions.push(n);
+ assert.equal(validateGenerated(r,{...input(),nonsenseCount:1}).questions.length,2);
+ n.optionReasons=[];assert.throws(()=>validateGenerated(r,{...input(),nonsenseCount:1}));
+});
+test('generation performs independent audit before releasing the draft',async()=>{
+ const calls=[];const q=await createQuiz(input(),async(stage)=>{calls.push(stage);return stage==='generate'?raw():audit();});
+ assert.deepEqual(calls,['generate','audit']);assert.equal(q.questions.length,1);
+ await assert.rejects(createQuiz(input(),async s=>s==='generate'?raw():{checks:[]}));
+});
+const request=(patch={})=>({method:'POST',headers:{origin:'https://churrri-quiz.vercel.app','content-type':'application/json','x-vercel-forwarded-for':'test-'+Math.random()},body:input(),...patch});
+async function run(req,call){const res={headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.code=n;return this;},json(b){this.body=b;return this;}};await makeHandler(call)(req,res);return res;}
+test('endpoint rejects methods, foreign origins and malformed input without any AI calls',async()=>{
+ const call=()=>{throw Error('Must not call AI');};
+ assert.equal((await run(request({method:'GET'}),call)).code,405);
+ assert.equal((await run(request({headers:{origin:'https://other.invalid'}}),call)).code,403);
+ assert.equal((await run(request({body:{source}}),call)).code,400);
+ assert.equal((await run(request({body:'bad json'}),call)).code,400);
+});
+test('endpoint returns usable verified draft and throttles repeated requests',async()=>{
+ const req=request(),call=async s=>s==='generate'?raw():audit();
+ const r=await run(req,call);assert.equal(r.code,200);assert.equal(r.body.quiz.questions[0].correct,0);
+ assert.equal((await run(req,call)).code,429);
+});
+test('provider secrets/details are never returned; credits/auth/timeouts are actionable',()=>{
+ const err={statusCode:401,message:'key: secret-example'};assert.equal(publicAIError(err).status,503);assert.ok(!publicAIError(err).message.includes('secret-example'));
+ assert.equal(publicAIError({statusCode:402}).status,503);
+ assert.equal(publicAIError({message:'customer_verification_required'}).status,503);
+ assert.equal(publicAIError({name:'AbortError',message:'timeout'}).status,504);
+});
