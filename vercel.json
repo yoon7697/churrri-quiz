@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "npm test",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install --ignore-scripts",
   "headers": [
@@ -18,5 +18,10 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/generate-quiz.js": {
+      "maxDuration": 60
+    }
+  }
 }
