@@ -1,6 +1,7 @@
-import {generateText, Output, jsonSchema} from 'ai';
+import {generateText, Output, jsonSchema, gateway} from 'ai';
 import {createHash} from 'node:crypto';
 import {generationInput, createQuiz} from '../lib/quiz-generation.js';
+import {checkCredits, QUIZ_MODEL, safeDiagnostic} from '../lib/ai-safety.js';
 
 const requests=new Map();
 let active=0;
@@ -12,6 +13,7 @@ export function quota(ip,now=Date.now()) {
   v.count++;v.last=now;requests.set(key,v);return true;
 }
 export function publicAIError(error) {
+  if(error?.safetyCode==='credits_unavailable')return {status:503,message:'AI 무료 이용 잔액을 확인하지 못해 생성을 잠시 중단했어요. 직접 문제 만들기는 사용할 수 있어요.'};
   const chain=[error,error?.cause,error?.cause?.cause];
   const message=chain.map(e=>String(e?.message||'')).join(' ');
   const status=chain.find(e=>Number.isInteger(e?.statusCode))?.statusCode;
@@ -32,13 +34,21 @@ export function makeHandler(call) {return async function handler(req,res) {
   if(!String(req.headers['content-type']||'').startsWith('application/json'))return send(415,{message:'올바른 형식으로 요청해 주세요.'});
   let input;
   try {if(Number(req.headers['content-length'])>100000)throw Error('자료가 너무 커요. 내용을 줄여 주세요.');input=generationInput(typeof req.body==='string'?JSON.parse(req.body):req.body);}catch(e){return send(400,{message:e instanceof SyntaxError?'자료를 다시 확인해 주세요.':e.message});}
-  if(active>=3||!quota(String(req.headers['x-vercel-forwarded-for']||req.headers['x-real-ip']||req.socket?.remoteAddress||'unknown').split(',')[0]))return send(429,{message:'잠시 쉬었다 다시 만들어 주세요. 한 번 만든 문제는 저장해 다시 사용할 수 있어요.'});
+  if(active>=3||!quota(String(req.headers['x-vercel-forwarded-for']||req.headers['x-real-ip']||req.socket?.remoteAddress||'unknown').split(',')[0])){res.setHeader('Retry-After','30');return send(429,{message:'잠시 쉬었다 다시 만들어 주세요. 한 번 만든 문제는 저장해 다시 사용할 수 있어요.'});}
   active++;
   try {return send(200,{quiz:await createQuiz(input,call)});}catch(e){const p=publicAIError(e);return send(p.status,{message:p.message});}finally{active--;}
 };}
 export default makeHandler(async (stage,{schema,...options})=>{
-  const {output}=await generateText({model:process.env.AI_GATEWAY_MODEL||'openai/gpt-6-luna',...options,
-    output:Output.object({schema:jsonSchema(schema)}),maxOutputTokens:stage==='generate'?7500:2200,
-    maxRetries:0,abortSignal:AbortSignal.timeout(stage==='generate'?33000:20000)});
-  return output;
+  try {
+    // Check at both generation and independent audit. No OIDC/BYOK fallback.
+    if(!process.env.AI_GATEWAY_API_KEY)throw Object.assign(Error('missing_api_key'),{statusCode:401});
+    const credits=await checkCredits(()=>gateway.getCredits());
+    console.info(JSON.stringify({event:'quiz_credit_check',stage,balance:credits.balance,used:credits.used}));
+    const {output,usage,providerMetadata}=await generateText({model:QUIZ_MODEL,...options,
+      output:Output.object({schema:jsonSchema(schema)}),maxOutputTokens:stage==='generate'?7500:2200,
+      maxRetries:0,abortSignal:AbortSignal.timeout(stage==='generate'?30000:15000)});
+    console.info(JSON.stringify({event:'quiz_ai_completed',stage,inputTokens:usage?.inputTokens,outputTokens:usage?.outputTokens,
+      generationId:providerMetadata?.gateway?.generationId}));
+    return output;
+  } catch(error) {console.error(JSON.stringify(safeDiagnostic(error)));throw error;}
 });

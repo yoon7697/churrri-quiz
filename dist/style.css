@@ -8,3 +8,21 @@
 .hero-art.quiz-illustration{min-height:0;transform:none;margin:0;align-self:center}.quiz-illustration img{display:block;width:100%;height:auto;aspect-ratio:1672/941;border-radius:24px;border:3px solid #ead4af;box-shadow:0 12px 32px #7a572114}
 
 .ai-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(240px,1fr);gap:24px;margin-bottom:40px}.ai-fields{border:0;padding:0;margin:0;min-width:0}.ai-fields:disabled{opacity:.65}.ai-counts{display:grid;grid-template-columns:1fr 1fr;gap:18px}.ai-source{margin-top:24px}.ai-source-head{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}.ai-source-head .field-label{margin:0}.ai-pdf-label{cursor:pointer;font-size:12px;padding:9px 12px;min-height:40px}#ai-source{min-height:260px;line-height:1.8}.ai-disclosure{margin:20px 0;line-height:1.9}.ai-status{font-size:13px;line-height:1.9;color:#355f88;margin-top:16px;white-space:pre-wrap}.ai-aside{align-self:start}.ai-aside h2{font-size:24px;margin:15px 0 25px}.ai-aside p{line-height:1.9;font-size:13px}.ai-aside hr{border:0;border-top:1px solid var(--line);margin:24px 0}.ai-aside .btn{margin-top:14px}.ai-evidence{border:1px solid #d5e4f3;background:#f4f8fd;border-radius:12px;padding:16px;margin:22px 0;font-size:13px;line-height:1.9}.ai-evidence summary{cursor:pointer;font-weight:700}.ai-evidence blockquote{margin:10px 0;padding:10px 15px;border-left:3px solid #82aedc;background:#fff}.ai-review-note{background:#eaf2ff;border-radius:12px;padding:18px;margin:0 0 22px;font-size:13px;line-height:1.9}@media(max-width:760px){.ai-layout{grid-template-columns:1fr}.ai-aside{order:-1}.ai-aside .help-steps{display:none}.ai-aside h2{margin-bottom:12px}.ai-counts{gap:12px}}
+
+/* Enlarge the home illustration while keeping the stacked mobile layout. */
+@media(min-width:701px){.hero{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:28px}}
+
+/* App header shared visual standard: 우리 반 오목왕. */
+.topbar.wrap{width:100%;max-width:1420px;height:auto;min-height:94px;padding-left:30px;padding-right:30px;gap:16px}
+.topbar .brand{gap:12px;color:#262238;flex-shrink:0}
+.topbar .brand-icon{display:flex;align-items:center;justify-content:center;position:relative;width:51px;height:51px;flex-shrink:0;border-radius:13px;background:linear-gradient(125deg,#ffd88d,#efb76f);box-shadow:0 3px 0 #c89d62}
+.quiz-brand-symbol{width:35px;height:35px;filter:drop-shadow(0 1px 1px #66472235)}
+.topbar .brand strong{font-size:25px;line-height:1.2;letter-spacing:-1px;font-weight:850}
+.topbar .brand small{font-size:12px;line-height:normal;color:#827b82;margin-top:3px}
+.topbar .credit{font-size:12px;color:#8d8591;margin-left:12px;white-space:nowrap}
+.topbar .credit a{display:inline-block;margin-left:6px;padding:9px 16px;border:1px solid #e6d6c0;border-radius:22px;font-size:12px;font-weight:800;color:#4b4150;text-decoration:none;background:#fffaf1}
+.topbar .top-actions{gap:10px}
+.topbar .pill{background:#fffdfa;border:2px solid #d0bba2;border-radius:17px;color:#262238;font-size:16px;font-weight:800;line-height:normal;min-height:0;padding:10px 18px;box-shadow:0 3px 0 #e6d8c4}
+.topbar .pill:hover{transform:translateY(-2px)}
+@media(max-width:750px){.topbar.wrap{flex-wrap:wrap;min-height:94px;padding:14px 16px 16px;gap:10px}.topbar .brand strong{font-size:20px}.topbar .brand-icon{width:42px;height:42px}.quiz-brand-symbol{width:30px;height:30px}.topbar .credit{margin-left:auto}.topbar .top-actions{width:100%;justify-content:flex-end}.topbar .top-actions .pill{font-size:12px;padding:8px 12px}}
+@media(max-width:500px){.topbar .credit{font-size:10px}.topbar .credit a{font-size:12px;padding:6px 8px}}
