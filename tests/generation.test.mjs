@@ -5,7 +5,7 @@ import {makeHandler,publicAIError} from '../api/generate-quiz.js';
 import {validateQuiz} from '../dist/model.js';
 const source='액체 상태의 물이 기체인 수증기로 변하는 현상을 증발이라고 합니다. 기체 상태의 수증기가 액체인 물로 변하는 현상을 응결이라고 합니다.';
 const input=()=>generationInput({source,lessonCount:1,nonsenseCount:0});
-const raw=()=>({title:'물의 상태 변화',subject:'과학',questions:[{text:'액체인 물이 수증기로 변하는 현상은?',options:['증발','응결','동결','융해'],correct:0,explanation:'물이 액체에서 기체로 변하는 것은 증발이에요.',kind:'lesson',sourceQuote:'액체 상태의 물이 기체인 수증기로 변하는 현상을 증발이라고 합니다.',optionReasons:['액체에서 기체로 변하므로 정답이에요.','기체에서 액체로 변하는 것이에요.','액체가 고체로 변하는 것이에요.','고체가 액체로 변하는 것이에요.']}]});
+const raw=()=>({title:'물의 상태 변화',subject:'과학',questions:[{text:'액체인 물이 수증기로 변하는 현상은?',options:['증발','응결','동결','융해'],correct:0,explanation:'물이 액체에서 기체로 변하는 것은 증발이에요.',kind:'lesson',sourceQuote:'액체 상태의 물이 기체인 수증기로 변하는 현상을 증발이라고 합니다.',optionReasons:['증발: 액체에서 기체로 변하므로 정답이에요.','응결: 기체에서 액체로 변하는 것이에요.','동결: 액체가 고체로 변하는 것이에요.','융해: 고체가 액체로 변하는 것이에요.']}]});
 const audit=()=>({checks:[{index:0,answer:'A',unambiguous:true,grounded:true,suitable:true}]});
 test('counts reject strings, fractions and unsolicited difficulty; source is bounded',()=>{
  for(const lessonCount of [0,11,1.5,'5'])assert.throws(()=>generationInput({source,lessonCount,nonsenseCount:0}));
@@ -40,6 +40,10 @@ test('nonsense count is additional to learning questions and needs an explanatio
  const r=raw(),n=structuredClone(r.questions[0]);n.kind='nonsense';n.sourceQuote='';n.text='말놀이 예시 문제';r.questions.push(n);
  assert.equal(validateGenerated(r,{...input(),nonsenseCount:1}).questions.length,2);
  n.optionReasons=[];assert.throws(()=>validateGenerated(r,{...input(),nonsenseCount:1}));
+});
+test('rotated option explanations are rejected even when each sentence is factual',()=>{
+ const r=raw();r.questions[0].optionReasons.push(r.questions[0].optionReasons.shift());
+ assert.throws(()=>validateGenerated(r,input()),/보기와 설명의 순서/);
 });
 test('generation performs independent audit before releasing the draft',async()=>{
  const calls=[];const q=await createQuiz(input(),async(stage)=>{calls.push(stage);return stage==='generate'?raw():audit();});
