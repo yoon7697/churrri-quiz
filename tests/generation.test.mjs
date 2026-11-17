@@ -46,6 +46,12 @@ test('generation performs independent audit before releasing the draft',async()=
  assert.deepEqual(calls,['generate','audit']);assert.equal(q.questions.length,1);
  await assert.rejects(createQuiz(input(),async s=>s==='generate'?raw():{checks:[]}));
 });
+test('requested question count is explicit in the schema and numeric prompt fields',async()=>{
+ let sent;
+ await createQuiz(input(),async(stage,options)=>{if(stage==='generate'){sent=options;return raw();}return audit();});
+ assert.equal(sent.schema.properties.questions.minItems,1);assert.equal(sent.schema.properties.questions.maxItems,1);
+ assert.equal(JSON.parse(sent.prompt).lessonCount,1);assert.equal(JSON.parse(sent.prompt).nonsenseCount,0);
+});
 const request=(patch={})=>({method:'POST',headers:{origin:'https://churrri-quiz.vercel.app','content-type':'application/json','x-vercel-forwarded-for':'test-'+Math.random()},body:input(),...patch});
 async function run(req,call){const res={headers:{},setHeader(k,v){this.headers[k]=v;},status(n){this.code=n;return this;},json(b){this.body=b;return this;}};await makeHandler(call)(req,res);return res;}
 test('endpoint rejects methods, foreign origins and malformed input without any AI calls',async()=>{
