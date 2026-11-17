@@ -17,6 +17,7 @@ export function publicAIError(error) {
   const chain=[error,error?.cause,error?.cause?.cause];
   const message=chain.map(e=>String(e?.message||'')).join(' ');
   const status=chain.find(e=>Number.isInteger(e?.statusCode))?.statusCode;
+  if (/free tier.*(access|model)|no_providers_available/i.test(message)) return {status:503,message:'현재 무료 이용 계정에서 사용할 수 없는 AI 모델이에요. 운영자가 연결 모델을 확인해야 해요. 직접 문제 만들기는 사용할 수 있어요.'};
   if (/customer_verification_required|verification.*required/i.test(message)) return {status:503,message:'AI 연결에 운영자 계정 확인이 필요해요. 직접 문제 만들기는 계속 사용할 수 있어요.'};
   if (status===401||status===403||/api.key|authentication|unauthorized/i.test(message)) return {status:503,message:'AI 연결 설정을 확인해야 해요. 잠시 후 다시 이용해 주세요. 직접 문제 만들기는 사용할 수 있어요.'};
   if (status===402||/insufficient.*(fund|credit)|quota_for_entity|budget/i.test(message)) return {status:503,message:'AI 생성 사용량 한도에 도달했어요. 직접 문제를 만들거나 나중에 다시 이용해 주세요.'};
