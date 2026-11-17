@@ -6,7 +6,7 @@ import {validateQuiz} from '../dist/model.js';
 const source='액체 상태의 물이 기체인 수증기로 변하는 현상을 증발이라고 합니다. 기체 상태의 수증기가 액체인 물로 변하는 현상을 응결이라고 합니다.';
 const input=()=>generationInput({source,lessonCount:1,nonsenseCount:0});
 const raw=()=>({title:'물의 상태 변화',subject:'과학',questions:[{text:'액체인 물이 수증기로 변하는 현상은?',options:['증발','응결','동결','융해'],correct:0,explanation:'물이 액체에서 기체로 변하는 것은 증발이에요.',kind:'lesson',sourceQuote:'액체 상태의 물이 기체인 수증기로 변하는 현상을 증발이라고 합니다.',optionReasons:['액체에서 기체로 변하므로 정답이에요.','기체에서 액체로 변하는 것이에요.','액체가 고체로 변하는 것이에요.','고체가 액체로 변하는 것이에요.']}]});
-const audit=()=>({checks:[{index:0,correct:0,unambiguous:true,grounded:true,suitable:true}]});
+const audit=()=>({checks:[{index:0,answer:'A',unambiguous:true,grounded:true,suitable:true}]});
 test('counts reject strings, fractions and unsolicited difficulty; source is bounded',()=>{
  for(const lessonCount of [0,11,1.5,'5'])assert.throws(()=>generationInput({source,lessonCount,nonsenseCount:0}));
  for(const nonsenseCount of [-1,4,'1'])assert.throws(()=>generationInput({source,lessonCount:1,nonsenseCount}));
@@ -30,7 +30,7 @@ test('wrong question kinds/counts, repeated questions and equivalent options rej
 });
 test('audit disagreement, ambiguity, missing or repeated indices prevent returning a quiz',()=>{
  const q=validateGenerated(raw(),input());
- for(const patch of [{correct:1},{unambiguous:false},{grounded:false},{suitable:false},{index:2}]){
+ for(const patch of [{answer:'B'},{answer:0},{answer:'0'},{answer:'E'},{unambiguous:false},{grounded:false},{suitable:false},{index:2}]){
   const a=audit();Object.assign(a.checks[0],patch);assert.throws(()=>validateAudit(a,q));
  }
  assert.throws(()=>validateAudit({checks:[]},q));
@@ -52,6 +52,7 @@ test('question counts and audit indices are bounded; reviewer does not receive t
  assert.equal(sent.schema.properties.questions.minItems,1);assert.equal(sent.schema.properties.questions.maxItems,1);
  assert.equal(JSON.parse(sent.prompt).lessonCount,1);assert.equal(JSON.parse(sent.prompt).nonsenseCount,0);
  const p=JSON.parse(review.prompt);assert.equal(p.questions[0].correct,undefined);assert.equal(p.questions[0].index,0);
+ assert.equal(p.questions[0].options.A,'증발');assert.equal(p.questions[0].options.B,'응결');
  assert.equal(review.schema.properties.checks.minItems,1);assert.equal(review.schema.properties.checks.items.properties.index.maximum,0);
 });
 const request=(patch={})=>({method:'POST',headers:{origin:'https://churrri-quiz.vercel.app','content-type':'application/json','x-vercel-forwarded-for':'test-'+Math.random()},body:input(),...patch});

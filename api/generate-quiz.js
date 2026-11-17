@@ -50,7 +50,7 @@ export default makeHandler(async (stage,{schema,...options})=>{
       maxRetries:0,abortSignal:AbortSignal.timeout(stage==='generate'?30000:15000)});
     console.info(JSON.stringify({event:'quiz_ai_completed',stage,inputTokens:usage?.inputTokens,outputTokens:usage?.outputTokens,
       generationId:providerMetadata?.gateway?.generationId}));
-    if(stage==='audit')console.info(JSON.stringify({event:'quiz_audit_checks',checks:output?.checks?.map(({index,correct,unambiguous,grounded,suitable})=>({index,correct,unambiguous,grounded,suitable}))}));
+    if(stage==='audit')console.info(JSON.stringify({event:'quiz_audit_checks',checks:output?.checks?.map(({index,answer,unambiguous,grounded,suitable})=>({index,answer,unambiguous,grounded,suitable}))}));
     return output;
   } catch(error) {console.error(JSON.stringify(safeDiagnostic(error)));throw error;}
 });
