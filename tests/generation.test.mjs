@@ -71,12 +71,13 @@ test('generation performs independent audit before releasing the draft',async()=
  assert.deepEqual(calls,['generate','audit']);assert.equal(q.questions.length,1);
  await assert.rejects(createQuiz(input(),async s=>s==='generate'?raw():{checks:[]}));
 });
-test('question counts and audit indices are bounded; reviewer does not receive the marked answer',async()=>{
+test('question counts and audit indices are bounded; reviewer receives no answer clues from the draft',async()=>{
  let sent,review;
  await createQuiz(input(),async(stage,options)=>{if(stage==='generate'){sent=options;return raw();}review=options;return audit();});
  assert.equal(sent.schema.properties.questions.minItems,1);assert.equal(sent.schema.properties.questions.maxItems,1);
  assert.equal(JSON.parse(sent.prompt).lessonCount,1);assert.equal(JSON.parse(sent.prompt).nonsenseCount,undefined);
  const p=JSON.parse(review.prompt);assert.equal(p.questions[0].correct,undefined);assert.equal(p.questions[0].index,0);
+ assert.deepEqual(Object.keys(p.questions[0]).sort(), ['index','options','text']);
  assert.equal(p.questions[0].options.A,'증발');assert.equal(p.questions[0].options.B,'응결');
  assert.equal(review.schema.properties.checks.minItems,1);assert.equal(review.schema.properties.checks.items.properties.index.maximum,0);
 });
