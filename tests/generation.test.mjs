@@ -36,10 +36,31 @@ test('audit disagreement, ambiguity, missing or repeated indices prevent returni
  assert.throws(()=>validateAudit({checks:[]},q));
  assert.throws(()=>validateAudit({checks:[audit().checks[0],audit().checks[0]]},{questions:[q.questions[0],q.questions[0]]}));
 });
-test('nonsense count is additional to learning questions and needs an explanation',()=>{
- const r=raw(),n=structuredClone(r.questions[0]);n.kind='nonsense';n.sourceQuote='';n.text='말놀이 예시 문제';r.questions.push(n);
- assert.equal(validateGenerated(r,{...input(),nonsenseCount:1}).questions.length,2);
- n.optionReasons=[];assert.throws(()=>validateGenerated(r,{...input(),nonsenseCount:1}));
+test('wordplay is appended from the bank without entering either AI call',async()=>{
+ const requestInput = {...input(), nonsenseCount:3};
+ const calls = [];
+ const quiz = await createQuiz(requestInput, async (stage, options) => {
+  calls.push(stage);
+  assert.equal(options.system.includes('넌센스'), false);
+  assert.equal(JSON.parse(options.prompt).nonsenseCount, undefined);
+  if (stage === 'generate') {
+   assert.deepEqual(options.schema.properties.questions.items.properties.kind.enum, ['lesson']);
+   return raw();
+  }
+  assert.equal(JSON.parse(options.prompt).questions.length, 1);
+  return audit();
+ });
+ assert.deepEqual(calls, ['generate', 'audit']);
+ assert.deepEqual(quiz.questions.map(q => q.kind), ['lesson', 'nonsense', 'nonsense', 'nonsense']);
+ assert.equal(new Set(quiz.questions.map(q => q.text)).size, 4);
+ for (const q of validateQuiz(quiz).questions.slice(1)) {
+  assert.equal(q.options.length, 4);
+  assert.ok(q.explanation.includes(q.options[q.correct]));
+  assert.equal(q.sourceQuote, undefined);
+ }
+ const invalidDraft = raw();
+ invalidDraft.questions[0].kind = 'nonsense';
+ assert.throws(() => validateGenerated(invalidDraft, requestInput), /학습 문제만/);
 });
 test('rotated option explanations are rejected even when each sentence is factual',()=>{
  const r=raw();r.questions[0].optionReasons.push(r.questions[0].optionReasons.shift());
@@ -54,7 +75,7 @@ test('question counts and audit indices are bounded; reviewer does not receive t
  let sent,review;
  await createQuiz(input(),async(stage,options)=>{if(stage==='generate'){sent=options;return raw();}review=options;return audit();});
  assert.equal(sent.schema.properties.questions.minItems,1);assert.equal(sent.schema.properties.questions.maxItems,1);
- assert.equal(JSON.parse(sent.prompt).lessonCount,1);assert.equal(JSON.parse(sent.prompt).nonsenseCount,0);
+ assert.equal(JSON.parse(sent.prompt).lessonCount,1);assert.equal(JSON.parse(sent.prompt).nonsenseCount,undefined);
  const p=JSON.parse(review.prompt);assert.equal(p.questions[0].correct,undefined);assert.equal(p.questions[0].index,0);
  assert.equal(p.questions[0].options.A,'증발');assert.equal(p.questions[0].options.B,'응결');
  assert.equal(review.schema.properties.checks.minItems,1);assert.equal(review.schema.properties.checks.items.properties.index.maximum,0);
