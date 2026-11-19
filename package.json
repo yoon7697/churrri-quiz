@@ -9,6 +9,10 @@
   },
   "dependencies": {
     "ai": "7.0.173",
-    "pdfjs-dist": "6.5.438"
+    "pdfjs-dist": "6.5.438",
+    "read-excel-file": "9.3.17"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
   }
 }

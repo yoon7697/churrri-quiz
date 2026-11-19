@@ -9,6 +9,22 @@ function persist(){try{localStorage.setItem(KEY,JSON.stringify({version:1,...dat
 const quizzes=()=>[DEMO,...data.quizzes],quizById=id=>quizzes().find(q=>q.id===id),blank=()=>({id:uid(),text:'',options:['','','',''],correct:null,explanation:'',kind:'lesson'});
 function openDialog(title,html,actions={}){dialogActions=actions;modal.innerHTML=`<div class="dialog-head"><h2 id="modal-title">${view.esc(title)}</h2><button type="button" data-dialog-action="close" aria-label="닫기">×</button></div>${html}`;if(!modal.open)modal.showModal();}
 function confirm(title,text,label,fn){openDialog(title,`<p class="dialog-copy">${view.esc(text)}</p><div class="dialog-actions"><button class="btn" data-dialog-action="close">돌아가기</button><button class="btn primary" data-dialog-action="confirm">${view.esc(label)}</button></div>`,{confirm:()=>{modal.close();fn();}});}
+function openImportDialog() {
+  openDialog('퀴즈 파일 가져오기', `
+    <p class="dialog-copy">집에서 엑셀 양식을 채우고, 학교에서 저장한 파일을 선택하세요. 퀴즈왕에서 내보낸 JSON 파일도 열 수 있어요.</p>
+    <p class="hint">엑셀은 .xlsx 형식으로 저장해 주세요. 파일 하나에 최대 30문제를 담을 수 있어요.</p>
+    <p id="import-status" class="form-error" role="status"></p>
+    <div class="dialog-actions">
+      <a class="btn" href="./assets/quiz-template.xlsx" download="우리 반 퀴즈왕 엑셀 양식.xlsx">엑셀 양식 다운로드</a>
+      <button type="button" class="btn primary" data-dialog-action="select-file">퀴즈 파일 선택</button>
+    </div>
+    <input type="file" id="import-file" accept=".xlsx,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" hidden>`,
+  {'select-file': () => {
+    const input = $('#import-file');
+    input.value = '';
+    input.click();
+  }});
+}
 modal.addEventListener('click',event=>{const b=event.target.closest('[data-dialog-action]');if(!b)return;if(b.dataset.dialogAction==='close')modal.close();else dialogActions[b.dataset.dialogAction]?.();});
 let aiForm={title:'',subject:'',source:'',lessonCount:5,nonsenseCount:0},aiBusy=false,pdfBusy=false,aiMessage='',aiAbort=null;
 function go(next){if((aiBusy||pdfBusy)&&next!=='ai'){toast('작업이 끝날 때까지 기다리거나 생성을 취소해 주세요.');return;}if(route==='play'&&next!=='play'&&data.session){pauseTimer(data.session);persist();}route=next;render();window.scrollTo(0,0);}
@@ -33,7 +49,7 @@ async function act(a,b){const s=data.session;
  if(a==='move-question-up'||a==='move-question-down'){const n=editIndex+(a==='move-question-up'?-1:1);if(n<0||n>=draft.questions.length)return;[draft.questions[editIndex],draft.questions[n]]=[draft.questions[n],draft.questions[editIndex]];editIndex=n;dirty=true;render();return;}
  if(a==='delete'){const q=quizById(b.dataset.id);if(!q||q.builtIn)return;confirm('퀴즈를 삭제할까요?',`‘${q.title}’을 서랍에서 삭제해요. 진행 중인 퀴즈에는 영향을 주지 않아요.`,'삭제하기',()=>{data.quizzes=data.quizzes.filter(v=>v.id!==q.id);persist();render();toast('퀴즈를 삭제했어요.');});return;}
  if(a==='export'){const q=quizById(b.dataset.id);if(!q)return;const blob=new Blob([JSON.stringify({format:'churrri-quiz',version:1,quizzes:[q]},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=q.title.replace(/[\\/:*?"<>|]/g,'_')+'.quiz.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('퀴즈 파일을 내보냈어요.');return;}
- if(a==='import'){$('#import-file').value='';$('#import-file').click();return;}
+ if(a==='import'){guard(openImportDialog);return;}
  if(a==='less-group'||a==='more-group'){names();const n=settings.names.length+(a==='less-group'?-1:1);if(n<2||n>12)return;settings.names=Array.from({length:n},(_,i)=>settings.names[i]??`${i+1}모둠`);render();return;}
  if(a==='duration'){names();settings.duration=Number(b.dataset.value);render();return;}
  if(a==='resume'){go('play');return;}
@@ -58,7 +74,44 @@ root.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(b
 root.addEventListener('submit',e=>{if(e.target.id==='ai-form'){e.preventDefault();generateAI();return;}if(e.target.id==='setup-form'){e.preventDefault();launch();}});
 root.addEventListener('input',e=>{if(route==='ai'&&e.target.name){aiForm[e.target.name]=e.target.value;if(e.target.name==='source')$('#ai-source-length').textContent=e.target.value.length.toLocaleString();return;}if(route!=='edit')return;const f=e.target,key=f.dataset.editField;if(key){if(['title','subject'].includes(key))draft[key]=f.value;else draft.questions[editIndex][key]=f.value;dirty=true;}if(f.dataset.option!==undefined){draft.questions[editIndex].options[Number(f.dataset.option)]=f.value;dirty=true;}});
 root.addEventListener('change',e=>{const f=e.target;if(route==='ai'&&['lessonCount','nonsenseCount'].includes(f.name)){aiForm[f.name]=Number(f.value);$('#ai-total').textContent=`총 ${aiForm.lessonCount+aiForm.nonsenseCount}문제 · 정답당 10점`;return;}if(f.id==='ai-pdf'){importPDF(f.files[0]);return;}if(f.id==='quiz-choice'){names();setupId=f.value;render();}if(route==='edit'&&f.dataset.correct!==undefined){draft.questions[editIndex].correct=Number(f.dataset.correct);dirty=true;}if(route==='edit'&&f.id==='question-kind'){draft.questions[editIndex].kind=f.value;dirty=true;}});
-$('#import-file').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>1024*1024)throw Error('1MB 이하의 퀴즈 파일을 선택해 주세요.');const incoming=parseImport(JSON.parse(await file.text()));if(data.quizzes.length+incoming.length>100)throw Error('퀴즈가 가득 찼어요. 먼저 서랍을 정리해 주세요.');data.quizzes.push(...incoming);persist();go('library');toast(`${incoming.length}개 퀴즈를 가져왔어요.`);}catch(error){toast(error instanceof SyntaxError?'올바른 퀴즈 JSON 파일인지 확인해 주세요.':error.message);}});
+modal.addEventListener('change', async event => {
+  const input = event.target;
+  if (input.id !== 'import-file' || !input.files[0]) return;
+  const file = input.files[0];
+  const status = $('#import-status');
+  const button = modal.querySelector('[data-dialog-action="select-file"]');
+  button.disabled = true;
+  status.textContent = '퀴즈 파일을 읽고 있어요…';
+
+  try {
+    if (file.size > 1024 * 1024) throw Error('1MB 이하의 퀴즈 파일을 선택해 주세요.');
+    let incoming;
+    if (/\.xlsx$/i.test(file.name)) {
+      const {readExcelQuiz} = await import('./excel-quiz.js');
+      incoming = [await readExcelQuiz(file)];
+    } else if (/\.json$/i.test(file.name)) {
+      incoming = parseImport(JSON.parse(await file.text()));
+    } else {
+      throw Error('.xlsx 또는 .json 퀴즈 파일을 선택해 주세요.');
+    }
+    if (!modal.open || !input.isConnected) return;
+    if (data.quizzes.length + incoming.length > 100) throw Error('퀴즈가 가득 찼어요. 먼저 서랍을 정리해 주세요.');
+    const previous = data.quizzes;
+    data.quizzes = [...previous, ...incoming];
+    if (!persist()) {
+      data.quizzes = previous;
+      status.textContent = '브라우저에 저장하지 못했어요. 저장 공간을 확인한 뒤 다시 시도해 주세요.';
+      return;
+    }
+    modal.close();
+    go('library');
+    toast(`${incoming.length}개 퀴즈를 가져왔어요.`);
+  } catch (error) {
+    status.textContent = error instanceof SyntaxError ? '올바른 퀴즈 JSON 파일인지 확인해 주세요.' : error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
 function tick(){const s=data.session;if(!s||route!=='play'||s.phase!=='question'||!s.timer.duration)return;const left=remaining(s),text=$('#timer-text'),pause=$('#timer-toggle');if(!text||!pause)return;text.textContent=left?`${left}초`:'시간 끝';pause.textContent=s.timer.running?'Ⅱ':'▶';pause.setAttribute('aria-label',s.timer.running?'타이머 일시정지':'타이머 계속하기');pause.disabled=left===0;$('#timer').classList.toggle('expired',left<=5);if(!left&&s.timer.running){pauseTimer(s);persist();pause.textContent='▶';}}
 setInterval(tick,250);render();
 if(data.session&&data.session.phase!=='finished')openDialog('진행 중인 퀴즈가 있어요',`<p class="dialog-copy">${view.esc(data.session.quiz.title)}<br>${data.session.index+1} / ${data.session.quiz.questions.length}문제에서 이어갈 수 있어요.</p><div class="dialog-actions"><button class="btn" data-dialog-action="close">처음 화면 보기</button><button class="btn primary" data-dialog-action="resume">이어 하기</button></div>`,{resume:()=>{modal.close();go('play');}});
